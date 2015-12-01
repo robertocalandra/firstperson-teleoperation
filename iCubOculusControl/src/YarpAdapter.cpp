@@ -1,23 +1,3 @@
-/*
-*   This file is part of firstperson-telecontrol.
-*
-*    firstperson-telecontrol is free software: you can redistribute it and/or modify
-*    it under the terms of the GNU General Public License as published by
-*    the Free Software Foundation, either version 3 of the License, or
-*    (at your option) any later version.
-*
-*    firstperson-telecontrol is distributed in the hope that it will be useful,
-*    but WITHOUT ANY WARRANTY; without even the implied warranty of
-*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*    GNU General Public License for more details.
-*
-*    You should have received a copy of the GNU General Public License
-*    along with firstperson-telecontrol.  If not, see <http://www.gnu.org/licenses/>.
-*
-*	 Authors: Lars Fritsche, Felix Unverzagt, Roberto Calandra
-*	 Created: July, 2015
-*/
-
 #include <yarp/os/Network.h>
 #include <yarp/os/Time.h>
 #include <yarp/os/ResourceFinder.h>
@@ -41,8 +21,6 @@
 #include <YarpAdapter.h>
 #include <Windows.h>
 #define NO_STDIO_REDIRECT
-
-
 
 using namespace std;
 
@@ -91,6 +69,7 @@ YarpAdapter::~YarpAdapter() {
 	outputPort.close();
 }
 
+// register YARP grabber 
 void YarpAdapter::initializeDevice(int bodyPart, string remotePorts, string localPorts, string device)
 {
 	Property options;
@@ -121,111 +100,16 @@ void YarpAdapter::initializeDevice(int bodyPart, string remotePorts, string loca
 }
 
 void YarpAdapter::initializePorts() {
-	imagePort[0].open("/oculusController/image_right_in/in");  // give the port a name
-	imagePort[1].open("/oculusController/image_right_in/in");  // give the port a name
+	imagePort[0].open("/oculusController/image_left_in/in"); 
+	imagePort[1].open("/oculusController/image_right_in/in");  
 	outputPort.open("/oculusController/oculus_raw/out");
-	Network::connect("/icub/camcalib/left/out", "/icub/image_left/in", "udp", true);
-	Network::connect("/icub/camcalib/right/out", "/icub/image_right/in", "udp", true);
-}
-
-void YarpAdapter::initializeVelocity(int bodyPart)
-{
-	/*switch (bodyPart) {
-	case MOVE_LEFT_ARM:
-	case MOVE_RIGHT_ARM:
-		positionControl[bodyPart]->setRefSpeed(0, 80);
-		positionControl[bodyPart]->setRefSpeed(1, 80);
-		positionControl[bodyPart]->setRefSpeed(2, 80);
-		positionControl[bodyPart]->setRefSpeed(3, 80);
-		return;
-	case MOVE_TORSO:
-		positionControl[bodyPart]->setRefSpeed(0, 50);
-		positionControl[bodyPart]->setRefSpeed(1, 50);
-		positionControl[bodyPart]->setRefSpeed(2, 50);
-		return;
-	case MOVE_HEAD:
-		positionControl[bodyPart]->setRefSpeed(0, 50);
-		positionControl[bodyPart]->setRefSpeed(1, 50);
-		positionControl[bodyPart]->setRefSpeed(2, 50);
-		positionControl[bodyPart]->setRefSpeed(3, 20);
-		positionControl[bodyPart]->setRefSpeed(4, 20);
-		positionControl[bodyPart]->setRefSpeed(5, 20);
-		return;
-	}*/
-}
-
-void YarpAdapter::initializeGains(int bodyPart) {
-	Pid* pids = readGains(bodyPart);
-	double gainDiscount = 0.8;
-
-	switch (bodyPart) {
-	case MOVE_LEFT_ARM:
-	case MOVE_RIGHT_ARM:
-		pidControl[bodyPart]->setPid(0, changePid(pids[0], gainDiscount));
-		pidControl[bodyPart]->setPid(1, changePid(pids[1], gainDiscount));
-		pidControl[bodyPart]->setPid(2, changePid(pids[2], gainDiscount));
-		pidControl[bodyPart]->setPid(3, changePid(pids[3], gainDiscount));
-		pidControl[bodyPart]->setPid(4, changePid(pids[4], gainDiscount));
-		return;
-	case MOVE_TORSO:
-		pidControl[bodyPart]->setPid(0, changePid(pids[0], gainDiscount));
-		pidControl[bodyPart]->setPid(1, changePid(pids[1], gainDiscount));
-		pidControl[bodyPart]->setPid(2, changePid(pids[2], gainDiscount));
-		return;
-	case MOVE_HEAD:
-		pidControl[bodyPart]->setPid(0, changePid(pids[0], gainDiscount));
-		pidControl[bodyPart]->setPid(1, changePid(pids[1], gainDiscount));
-		pidControl[bodyPart]->setPid(2, changePid(pids[2], gainDiscount));
-		pidControl[bodyPart]->setPid(3, changePid(pids[3], gainDiscount));
-		pidControl[bodyPart]->setPid(4, changePid(pids[4], gainDiscount));
-		pidControl[bodyPart]->setPid(5, changePid(pids[5], gainDiscount));
-		return;
-	}
-}
-
-Pid YarpAdapter::changePid(Pid pid, double discount) {
-	ofstream myfile;
-	myfile.open("right_arm_pid.txt", ios::app);
-	myfile << "new " << pid.kp << " " << pid.kd << pid.ki << " ";
-	myfile.close();
-
-	pid.kd = pid.kd;
-	pid.kp = pid.kp * discount;
-
-	myfile.open("right_arm_pid.txt", ios::app);
-	myfile << "old " << pid.kp << " " << pid.kd << pid.ki << "\n";
-	myfile.close();
-
-	return pid;
-}
-
-Pid* YarpAdapter::readGains(int bodyPart) {
-	Pid pidsLArm[16];
-	Pid pidsRArm[16];
-
-	Pid pidsTorso[3];
-	Pid pidsHead[6];
-	switch (bodyPart) {
-	case MOVE_LEFT_ARM:
-		pidControl[MOVE_LEFT_ARM]->getPids(pidsLArm);
-		return pidsLArm;
-	case MOVE_RIGHT_ARM:
-		pidControl[MOVE_RIGHT_ARM]->getPids(pidsRArm);
-		return pidsRArm;
-	case MOVE_HEAD:
-		pidControl[MOVE_HEAD]->getPids(pidsHead);
-		return pidsHead;
-	case MOVE_TORSO:
-		pidControl[MOVE_TORSO]->getPids(pidsTorso);
-		return pidsTorso;
-	}
-		
-	return NULL;
-	
+	Network::connect("/icub/camcalib/left/out", "/oculusController/image_left_in/in", "udp", true);
+	Network::connect("/icub/camcalib/right/out", "/oculusController/image_right_in/in", "udp", true);
 }
 
 void YarpAdapter::initialize()
 {
+	// important!!! has to be set for gazebo 
 	robotName = "/icubGazeboSim";
 	//robotName = "/icub";
 
@@ -254,12 +138,6 @@ void YarpAdapter::initialize()
 	return;
 }
 
-int YarpAdapter::move(int bodyPart, int jointId, double angle)
-{
-//		positionControl[bodyPart]->positionMove(jointId, angle);
-	return 0;
-}
-
 unsigned char * YarpAdapter::getImage(int camera) {
 	image = imagePort[camera].read();  // read an image
 	if (image != NULL) { // check we actually got something
@@ -268,13 +146,6 @@ unsigned char * YarpAdapter::getImage(int camera) {
 		int height = image->height();
 	}
 	return image->getRawImage();
-}
-
-int YarpAdapter::move(int bodyPart, double *refs)
-{
-	bool success = positionControl[bodyPart]->setPositions(refs);
-
-	return 0;
 }
 
 double* YarpAdapter::getJoints(int bodyPart) {

@@ -1,23 +1,3 @@
-/*
-*   This file is part of firstperson-telecontrol.
-*
-*    firstperson-telecontrol is free software: you can redistribute it and/or modify
-*    it under the terms of the GNU General Public License as published by
-*    the Free Software Foundation, either version 3 of the License, or
-*    (at your option) any later version.
-*
-*    firstperson-telecontrol is distributed in the hope that it will be useful,
-*    but WITHOUT ANY WARRANTY; without even the implied warranty of
-*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*    GNU General Public License for more details.
-*
-*    You should have received a copy of the GNU General Public License
-*    along with firstperson-telecontrol.  If not, see <http://www.gnu.org/licenses/>.
-*
-*	 Authors: Lars Fritsche, Felix Unverzagt, Roberto Calandra
-*	 Created: July, 2015
-*/
-
 
 #define GLEW_STATIC
 #include "GL/glew.h"
@@ -52,7 +32,7 @@ int fps = 200;
 double spf = double(1) / double(fps);
 int i = 0;
 
-bool gazebo = true;
+bool gazebo = false;
 
 ovrHmd           HMD;                  // The handle of the headset
 ovrEyeRenderDesc EyeRenderDesc[2];     // Description of the VR.
@@ -260,7 +240,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR, int) {
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_DEPTH_TEST);
 
-	bool running = true;
 
 	// bind pictures as texture
 	GLuint imageTex;
@@ -271,16 +250,18 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR, int) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	int width = 320;
-	int height = 240;
+	int width = 640;
+	int height = 480;
 
 	int allPixels = width * height * 3;
 	unsigned char * image = new unsigned char[allPixels];
 
 	ovrHSWDisplayState hswDisplayState;
 	ovrHmd_RecenterPose(hmd);
+	
 	bool initialized = false;
 	//bool performMovement = false;
+	bool running = true;
 	while (running == true)
 	{
 		ovrHmd_GetHSWDisplayState(hmd, &hswDisplayState);
@@ -288,9 +269,10 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR, int) {
 			ovrHmd_DismissHSWDisplay(hmd);
 		}
 
-
+		// catch keyboard events
+		// ESC: quit
+		// key_up: recenter pose of HMD
 		SDL_Event event;
-
 		while (SDL_PollEvent(&event))
 		{
 			switch (event.type)
@@ -331,6 +313,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR, int) {
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		// only runs when not using the simulated gazebo icub because there we do not receive any images (July 2015)
 		if (!gazebo) {
 
 			for (int eyeIndex = 0; eyeIndex < ovrEye_Count; eyeIndex++)
@@ -345,10 +328,11 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR, int) {
 
 				glViewport(eyeRenderViewport[eye].Pos.x, eyeRenderViewport[eye].Pos.y, eyeRenderViewport[eye].Size.w, eyeRenderViewport[eye].Size.h);
 
+				// currently we use the image of the right eye for both eyes because it is very challenging to calibrate both eyes to prevent them from squinting
 				if (eyeIndex == 1)
-					image = yAdapter->getImage(YarpAdapter::CAMERA_LEFT);
+					image = yAdapter->getImage(YarpAdapter::CAMERA_RIGHT);
 				else
-					image = yAdapter->getImage(YarpAdapter::CAMERA_LEFT);
+					image = yAdapter->getImage(YarpAdapter::CAMERA_RIGHT);
 			
 
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
@@ -365,16 +349,14 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR, int) {
 		ovrPosef temp_EyeRenderPose[2];
 		ovrHmd_GetEyePoses(hmd, 0, useHmdToEyeViewOffset, temp_EyeRenderPose, NULL);
 
+		// flip sign of z
 		double newVal[] = {
 			(double)temp_EyeRenderPose[0].Orientation.x,
 			(double)-temp_EyeRenderPose[0].Orientation.z,
 			(double)temp_EyeRenderPose[0].Orientation.y };
 
-		//vector<double*> angles = oAdapter->transformToAnglesInDegree(newVal);
-
+		// send measured data into YARP network
 		yAdapter->writeToOutput(6, newVal);
-		//if (performMovement) 
-		//	yAdapter->move(YarpAdapter::MOVE_HEAD, angles[0]);
 
 		glBindVertexArray(0);
 

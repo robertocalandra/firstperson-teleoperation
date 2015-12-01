@@ -16,8 +16,6 @@ set(SOURCES
     src/ICubOculusController.cpp
 	src/OculusAdapter.cpp
 	src/YarpAdapter.cpp
-	src/MultidimensionalFilter.cpp
-	src/Filter.cpp
 )
 
 SOURCE_GROUP("Source Files" FILES ${SOURCES})
